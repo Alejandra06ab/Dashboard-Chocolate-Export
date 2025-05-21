@@ -1,82 +1,124 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# URLs de los archivos CSV
-# Asegúrate de que estos URLs sean correctos y apunten a tus archivos raw en GitHub.
-# Para el usuario 'Alejandra06ab', los URLs deberían ser algo como esto:
-clientes_url = "https://raw.githubusercontent.com/Alejandra06ab/Dashboard-ChocolateExport/main/clientes.csv"
-mercados_url = "https://raw.githubusercontent.com/Alejandra06ab/Dashboard-ChocolateExport/main/mercados.csv"
-exportaciones_url = "https://raw.githubusercontent.com/Alejandra06ab/Dashboard-ChocolateExport/main/exportaciones.csv"
-barreras_url = "https://raw.githubusercontent.com/Alejandra06ab/Dashboard-ChocolateExport/main/barreras.csv"
+# Configuración de la página de Streamlit
+st.set_page_config(layout="wide", page_title="Dashboard de Exportación de Chocolate")
 
-# Cargar los datos
-@st.cache_data # Decorador para cachear los datos y evitar recargarlos en cada interacción
+# Título principal del dashboard
+st.title("🍫 Dashboard de Exportación de Chocolate 📊")
+
+# Descripción
+st.markdown("""
+Este dashboard interactivo te permite explorar datos sobre la exportación de chocolate.
+Puedes filtrar los datos por país, año y tipo de producto para obtener insights detallados.
+""")
+
+# --- Carga de datos de ejemplo ---
+# En una aplicación real, cargarías tus datos desde un archivo CSV, Excel o una base de datos.
+# Aquí creamos un DataFrame de ejemplo para demostrar la funcionalidad.
+@st.cache_data
 def load_data():
-    clientes = pd.read_csv(clientes_url)
-    mercados = pd.read_csv(mercados_url)
-    exportaciones = pd.read_csv(exportaciones_url)
-    barreras = pd.read_csv(barreras_url)
-    return clientes, mercados, exportaciones, barreras
+    data = {
+        'Año': [2020, 2020, 2021, 2021, 2022, 2022, 2023, 2023],
+        'País': ['Francia', 'Alemania', 'Francia', 'Alemania', 'Francia', 'Alemania', 'Francia', 'Alemania'],
+        'Producto': ['Chocolate Negro', 'Chocolate con Leche', 'Chocolate Negro', 'Chocolate con Leche', 'Chocolate Negro', 'Chocolate con Leche', 'Chocolate Negro', 'Chocolate con Leche'],
+        'Valor_Exportacion_USD': [150000, 120000, 160000, 130000, 170000, 140000, 180000, 150000],
+        'Cantidad_KG': [5000, 4000, 5200, 4100, 5500, 4300, 5800, 4500]
+    }
+    df = pd.DataFrame(data)
+    return df
 
-clientes, mercados, exportaciones, barreras = load_data()
+df = load_data()
 
-# Título del Dashboard
-st.title("Dashboard Interactivo de Exportaciones de Chocolates")
+# --- Filtros en la barra lateral ---
+st.sidebar.header("Filtros de Datos")
 
-# Filtro de país
-paises = exportaciones["País"].unique()
-pais_seleccionado = st.selectbox("Selecciona un país para ver los detalles", paises)
+# Filtro por País
+paises_disponibles = sorted(df['País'].unique())
+pais_seleccionado = st.sidebar.multiselect(
+    "Selecciona País(es):",
+    options=paises_disponibles,
+    default=paises_disponibles
+)
 
-# Mostrar datos de clientes
-st.subheader(f"Clientes en {pais_seleccionado}")
-clientes_filtrados = clientes[clientes["País"] == pais_seleccionado]
-if not clientes_filtrados.empty:
-    st.dataframe(clientes_filtrados)
+# Filtro por Año
+años_disponibles = sorted(df['Año'].unique())
+año_seleccionado = st.sidebar.multiselect(
+    "Selecciona Año(s):",
+    options=años_disponibles,
+    default=años_disponibles
+)
+
+# Filtro por Producto
+productos_disponibles = sorted(df['Producto'].unique())
+producto_seleccionado = st.sidebar.multiselect(
+    "Selecciona Tipo de Producto:",
+    options=productos_disponibles,
+    default=productos_disponibles
+)
+
+# Aplicar filtros
+df_filtrado = df[
+    df['País'].isin(pais_seleccionado) &
+    df['Año'].isin(año_seleccionado) &
+    df['Producto'].isin(producto_seleccionado)
+]
+
+# --- Visualización de datos ---
+
+if df_filtrado.empty:
+    st.warning("No hay datos disponibles para la combinación de filtros seleccionada.")
 else:
-    st.info(f"No hay datos de clientes disponibles para {pais_seleccionado}.")
+    st.subheader("Resumen de Datos Filtrados")
+    st.dataframe(df_filtrado)
 
-# Mostrar datos de exportaciones
-st.subheader(f"Exportaciones de Chocolates en {pais_seleccionado}")
-exportaciones_filtradas = exportaciones[exportaciones["País"] == pais_seleccionado]
-
-if not exportaciones_filtradas.empty:
-    fig, ax = plt.subplots()
-    ax.bar(exportaciones_filtradas["Año"], exportaciones_filtradas["Exportaciones (USD millones)"], color='#2E86C1')
-    ax.set_xlabel("Año")
-    ax.set_ylabel("Exportaciones (USD millones)")
-    ax.set_title(f"Exportaciones de Chocolates en {pais_seleccionado}")
+    # Gráfico 1: Valor de Exportación por Año y País
+    st.subheader("Valor de Exportación por Año y País")
+    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    sns.barplot(x='Año', y='Valor_Exportacion_USD', hue='País', data=df_filtrado, ax=ax1, palette='viridis')
+    ax1.set_title('Valor de Exportación (USD) por Año y País')
+    ax1.set_xlabel('Año')
+    ax1.set_ylabel('Valor de Exportación (USD)')
     plt.xticks(rotation=45)
-    st.pyplot(fig)
-else:
-    st.info(f"No hay datos de exportaciones disponibles para {pais_seleccionado}.")
+    st.pyplot(fig1)
+    plt.close(fig1) # Cierra la figura para liberar memoria
 
-
-# Mostrar datos de mercados
-st.subheader(f"Segmentos de Mercado en {pais_seleccionado}")
-mercados_filtrados = mercados[mercados["País"] == pais_seleccionado]
-if not mercados_filtrados.empty:
-    st.dataframe(mercados_filtrados)
-else:
-    st.info(f"No hay datos de segmentos de mercado disponibles para {pais_seleccionado}.")
-
-# Mostrar barreras de entrada
-st.subheader(f"Barreras de Entrada en {pais_seleccionado}")
-barreras_filtradas = barreras[barreras["País"] == pais_seleccionado]
-if not barreras_filtradas.empty:
-    st.dataframe(barreras_filtradas)
-else:
-    st.info(f"No hay datos de barreras de entrada disponibles para {pais_seleccionado}.")
-
-
-# Análisis Comparativo
-st.subheader("Análisis Comparativo de Tamaño de Mercado por País")
-if not mercados.empty:
-    fig2, ax2 = plt.subplots(figsize=(10, 6)) # Aumentar tamaño para mejor visualización
-    ax2.bar(mercados["País"], mercados["Tamaño del Mercado (USD millones)"], color='#F39C12')
-    ax2.set_xlabel("País")
-    ax2.set_ylabel("Tamaño del Mercado (USD millones)")
-    ax2.set_title("Comparación de Tamaños de Mercado por País")
-    plt.xticks(rotation=60, ha='right') # Rotar y alinear para etiquetas largas
-    plt.tight_layout() # Ajustar el diseño para evitar el solapamiento
+    # Gráfico 2: Cantidad Exportada por Producto
+    st.subheader("Cantidad Exportada por Producto")
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    sns.barplot(x='Producto', y='Cantidad_KG', data=df_filtrado.groupby('Producto')['Cantidad_KG'].sum().reset_index(), ax=ax2, palette='magma')
+    ax2.set_title('Cantidad Total Exportada (KG) por Producto')
+    ax2.set_xlabel('Producto')
+    ax2.set_ylabel('Cantidad Exportada (KG)')
+    plt.xticks(rotation=45)
     st.pyplot(fig2)
+    plt.close(fig2) # Cierra la figura para liberar memoria
+
+    # Gráfico 3: Distribución del Valor de Exportación
+    st.subheader("Distribución del Valor de Exportación")
+    fig3, ax3 = plt.subplots(figsize=(10, 6))
+    sns.histplot(df_filtrado['Valor_Exportacion_USD'], kde=True, ax=ax3, color='skyblue')
+    ax3.set_title('Distribución del Valor de Exportación (USD)')
+    ax3.set_xlabel('Valor de Exportación (USD)')
+    ax3.set_ylabel('Frecuencia')
+    st.pyplot(fig3)
+    plt.close(fig3) # Cierra la figura para liberar memoria
+
+    # Métricas clave
+    st.subheader("Métricas Clave")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        total_exportacion_usd = df_filtrado['Valor_Exportacion_USD'].sum()
+        st.metric(label="Valor Total de Exportación", value=f"${total_exportacion_usd:,.2f}")
+    with col2:
+        total_cantidad_kg = df_filtrado['Cantidad_KG'].sum()
+        st.metric(label="Cantidad Total Exportada", value=f"{total_cantidad_kg:,.2f} KG")
+    with col3:
+        num_registros = len(df_filtrado)
+        st.metric(label="Número de Registros", value=num_registros)
+
+# Información adicional
+st.sidebar.markdown("---")
+st.sidebar.info("Este dashboard es un ejemplo. Puedes personalizarlo con tus propios datos y visualizaciones.")
